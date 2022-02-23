@@ -1,12 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import IngredientList from "./IngredientList";
 import IngredientForm from "./IngredientForm";
+import ErrorModal from "../UI/ErrorModal";
 import Search from "./Search";
 
 function Ingredients() {
   const [useringredients, setUseringredients] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState();
 
-  const ingredientsHandler = (ingedients) => {
+  const filteredDataHandler = useCallback((filteredData) => {
+    setUseringredients(filteredData);
+  }, []);
+
+  const addIngredientsHandler = (ingedients) => {
+    setIsLoading(true);
     fetch(
       "https://summary-7359f-default-rtdb.firebaseio.com/ingredients.json",
       {
@@ -16,6 +24,7 @@ function Ingredients() {
       }
     )
       .then((response) => {
+        setIsLoading(false);
         return response.json();
       })
       .then((responseData) => {
@@ -24,20 +33,38 @@ function Ingredients() {
           ...previousState,
           { id: responseData.name, ...ingedients },
         ]);
+      })
+      .catch((err) => {
+        setError("Something went wrong");
       });
   };
 
   const removeIngredientsHandler = (id) => {
-    setUseringredients((previousState) =>
-      previousState.filter((item) => item.id !== id)
-    );
+    setIsLoading(true);
+    fetch(
+      `https://summary-7359f-default-rtdb.firebaseio.com/ingredients/${id}.json`,
+      { method: "DELETE" }
+    ).then((response) => {
+      setIsLoading(false);
+      setUseringredients((previousState) =>
+        previousState.filter((item) => item.id !== id)
+      );
+    });
+  };
+  const errorHandler = () => {
+    setIsLoading(false);
+    setError();
   };
 
   return (
     <div className="App">
-      <IngredientForm onAddInputValues={ingredientsHandler} />
+      {error && <ErrorModal onClose={errorHandler}>{error}</ErrorModal>}
+      <IngredientForm
+        onAddInputValues={addIngredientsHandler}
+        isloading={isLoading}
+      />
       <section>
-        <Search />
+        <Search onLoadedFilteredData={filteredDataHandler} />
         <IngredientList
           ingredients={useringredients}
           onRemoveItem={removeIngredientsHandler}
